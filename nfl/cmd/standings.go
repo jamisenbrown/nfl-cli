@@ -4,11 +4,56 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/spf13/cobra"
 )
+
+type teamInfo struct {
+	DisplayName string `json:"displayName"`
+	Id          string `json:"id"`
+}
+
+type teamStats []struct {
+	DisplayName  string `json:"displayName"`
+	DisplayValue string `json:"displayValue"`
+}
+
+type divisionStandings struct {
+	Name            string `json:"name"`
+	StandingEntries []struct {
+		TeamStats teamStats `json:"stats"`
+		TeamInfo  teamInfo  `json:"team"`
+	} `json:"entries"`
+}
+
+type division []struct {
+	Name      string            `json:"name"`
+	Standings divisionStandings `json:"standings"`
+}
+
+type conference []struct {
+	Name      string   `json:"name"`
+	Divisions division `json:"groups"`
+}
+
+type contentStandings struct {
+	Name        string     `json:"name"`
+	Conferences conference `json:"groups"`
+}
+
+type standingsResponse struct {
+	Content struct {
+		Title       string           `json:"title"`
+		Description string           `json:"description"`
+		Sport       string           `json:"sport"`
+		Standings   contentStandings `json:"standings"`
+	} `json:"content"`
+}
 
 // standingsCmd represents the standings command
 var standingsCmd = &cobra.Command{
@@ -22,13 +67,43 @@ func getStandings(cmd *cobra.Command, args []string) {
 	fmt.Println("Getting NFL standings")
 
 	apiUrl := "https://cdn.espn.com/core/nfl/standings?xhr=1"
-	request, error := http.NewRequest("GET", apiUrl, nil)
+
+	espnClient := http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	request, error := http.NewRequest(http.MethodGet, apiUrl, nil)
 
 	if error != nil {
 		fmt.Println(error)
 	}
 
-	fmt.Println(request)
+	response, getErr := espnClient.Do(request)
+	if getErr != nil {
+		fmt.Println(getErr)
+	}
+
+	if response.Body != nil {
+		defer response.Body.Close()
+	}
+
+	body, readErr := io.ReadAll(response.Body)
+
+	if readErr != nil {
+		fmt.Println(readErr)
+	}
+
+	standing1 := standingsResponse{}
+	jsonErr := json.Unmarshal(body, &standing1)
+	if jsonErr != nil {
+		fmt.Println(jsonErr)
+	}
+
+	// output the AFC East!
+	fmt.Println(standing1.Content.Standings.Conferences[0].Divisions[0].Standings.StandingEntries[0].TeamInfo.DisplayName)
+	fmt.Println(standing1.Content.Standings.Conferences[0].Divisions[0].Standings.StandingEntries[1].TeamInfo.DisplayName)
+	fmt.Println(standing1.Content.Standings.Conferences[0].Divisions[0].Standings.StandingEntries[2].TeamInfo.DisplayName)
+	fmt.Println(standing1.Content.Standings.Conferences[0].Divisions[0].Standings.StandingEntries[3].TeamInfo.DisplayName)
 }
 
 func init() {
