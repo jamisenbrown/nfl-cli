@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+var playoffs bool
 
 type teamInfo struct {
 	DisplayName string `json:"displayName"`
@@ -64,6 +67,7 @@ var standingsCmd = &cobra.Command{
 }
 
 func getStandings(cmd *cobra.Command, args []string) {
+	flag.Parse()
 	fmt.Println("Getting NFL standings")
 	fmt.Println()
 
@@ -100,7 +104,11 @@ func getStandings(cmd *cobra.Command, args []string) {
 		fmt.Println(jsonErr)
 	}
 
-	printStandings(standingsResponse)
+	if playoffs {
+		printPlayoffStandings()
+	} else {
+		printStandings(standingsResponse)
+	}
 }
 
 func printStandings(standings standingsResponse) {
@@ -126,16 +134,15 @@ func printDivision(division division) {
 	fmt.Println()
 }
 
+func printPlayoffStandings() {
+	fmt.Println("playoffs?!")
+
+	// figure out playoff standings based on team standings
+	// both afc and nfc
+}
+
 func init() {
 	rootCmd.AddCommand(standingsCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// standingsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// standingsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	standingsCmd.Flags().BoolVarP(&playoffs, "playoffs", "p", false, "Shows playoff standings")
 }
