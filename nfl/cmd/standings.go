@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -18,6 +19,7 @@ var playoffs bool
 
 type teamInfo struct {
 	DisplayName string `json:"displayName"`
+	Seed        string `json:"seed"`
 	Id          string `json:"id"`
 }
 
@@ -39,14 +41,14 @@ type division struct {
 	Standings divisionStandings `json:"standings"`
 }
 
-type conference []struct {
+type conference struct {
 	Name      string     `json:"name"`
 	Divisions []division `json:"groups"`
 }
 
 type contentStandings struct {
-	Name        string     `json:"name"`
-	Conferences conference `json:"groups"`
+	Name        string       `json:"name"`
+	Conferences []conference `json:"groups"`
 }
 
 type standingsResponse struct {
@@ -105,7 +107,7 @@ func getStandings(cmd *cobra.Command, args []string) {
 	}
 
 	if playoffs {
-		printPlayoffStandings()
+		printPlayoffStandings(standingsResponse)
 	} else {
 		printStandings(standingsResponse)
 	}
@@ -134,11 +136,33 @@ func printDivision(division division) {
 	fmt.Println()
 }
 
-func printPlayoffStandings() {
-	fmt.Println("playoffs?!")
+func printPlayoffStandings(standings standingsResponse) {
+	fmt.Println("AFC Conference")
+	printConferencePlayoffs(standings.Content.Standings.Conferences[0])
+	fmt.Println()
 
-	// figure out playoff standings based on team standings
-	// both afc and nfc
+	fmt.Println("NFC Conference")
+	printConferencePlayoffs(standings.Content.Standings.Conferences[1])
+}
+
+func printConferencePlayoffs(conference conference) {
+	var conferenceTeams [16]string
+	for _, division := range conference.Divisions {
+		for _, team := range division.Standings.StandingEntries {
+			seed, err := strconv.Atoi(team.TeamInfo.Seed)
+			if err != nil {
+				fmt.Println("Abort!!")
+			}
+			conferenceTeams[seed-1] = team.TeamInfo.DisplayName
+		}
+	}
+
+	for seed, team := range conferenceTeams {
+		if seed == 7 {
+			break
+		}
+		fmt.Println(strconv.Itoa(seed+1) + ". " + team)
+	}
 }
 
 func init() {
